@@ -18,7 +18,7 @@ st.markdown("Enter the details below to predict energy consumption using a train
 # Load Model
 # ---------------------------
 try:
-    model = joblib.load("")  # Make sure this file is in the same repo
+    model = joblib.load("linear_regression_model1.joblib")  # Make sure this file is in the same repo
 except FileNotFoundError:
     model = None
     st.warning("No trained model found. Please upload or train your model first!")

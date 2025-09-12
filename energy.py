@@ -2,73 +2,61 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-import matplotlib.pyplot as plt
+from sklearn.metrics import mean_squared_error
+import joblib
 
-# Title
-st.title("⚡ Energy Consumption Prediction (Linear Regression)")
+st.title("Energy Consumption Prediction")
 
-# Upload training and testing datasets
-train_file = st.file_uploader("Upload Training Dataset (CSV)", type=["csv"])
-test_file = st.file_uploader("Upload Testing Dataset (CSV)", type=["csv"])
+# 1️⃣ Upload dataset
+uploaded_file = st.file_uploader("Upload your CSV dataset", type=["csv"])
+if uploaded_file:
+    df = pd.read_csv(uploaded_file)
+    st.write("Preview of Dataset:")
+    st.dataframe(df.head())
 
-if train_file is not None and test_file is not None:
-    # Load data
-    train_df = pd.read_csv(train_file)
-    test_df = pd.read_csv(test_file)
+    # 2️⃣ Select features and target
+    all_columns = df.columns.tolist()
+    target_column = st.selectbox("Select Target Column (Energy Consumption)", all_columns)
+    feature_columns = st.multiselect("Select Feature Columns", [col for col in all_columns if col != target_column])
 
-    st.subheader("📊 Training Data Preview")
-    st.write(train_df.head())
+    if st.button("Train Model"):
+        # Prepare data
+        X = df[feature_columns]
+        y = df[target_column]
+        
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        
+        # Train model
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+        
+        # Evaluate model
+        y_pred = model.predict(X_test)
+        mse = mean_squared_error(y_test, y_pred)
+        st.success(f"Model trained! Mean Squared Error: {mse:.2f}")
+        
+        # Save the trained model
+        joblib.dump(model, "energy_model.pkl")
+        st.info("Trained model saved as 'energy_model.pkl'")
 
-    # Assuming last column is target (energy consumption)
-    X = train_df.iloc[:, :-1]
-    y = train_df.iloc[:, -1]
-
-    # Split for training and validation
-    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    # Scale features
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_val_scaled = scaler.transform(X_val)
-    test_scaled = scaler.transform(test_df)
-
-    # Train model - Linear Regression
-    model = LinearRegression()
-    model.fit(X_train_scaled, y_train)
-
-    # Predictions
-    y_pred = model.predict(X_val_scaled)
-
-    # Metrics
-    mae = mean_absolute_error(y_val, y_pred)
-    mse = mean_squared_error(y_val, y_pred)
-    rmse = np.sqrt(mse)
-    r2 = r2_score(y_val, y_pred)
-
-    st.subheader("📈 Model Performance")
-    st.write(f"**MAE:** {mae:.2f}")
-    st.write(f"**MSE:** {mse:.2f}")
-    st.write(f"**RMSE:** {rmse:.2f}")
-    st.write(f"**R² Score:** {r2:.2f}")
-
-    # Plot actual vs predicted
-    fig, ax = plt.subplots()
-    ax.scatter(y_val, y_pred, alpha=0.6, color="blue")
-    ax.plot([y_val.min(), y_val.max()], [y_val.min(), y_val.max()], 'r--')
-    ax.set_xlabel("Actual Energy Consumption")
-    ax.set_ylabel("Predicted Energy Consumption")
-    ax.set_title("Actual vs Predicted (Linear Regression)")
-    st.pyplot(fig)
-
-    # Predict on test dataset
-    st.subheader("🔮 Predictions on Test Data")
-    test_predictions = model.predict(test_scaled)
-    test_df["Predicted_Energy"] = test_predictions
-    st.write(test_df.head())
-
-    # Download predictions
-    csv_download = test_df.to_csv(index=False).encode("utf-8")
-    st.download_button("Download Predictions CSV", data=csv_download, file_name="predictions.csv", mime="text/csv")
+# 3️⃣ Predict energy consumption for new data
+st.subheader("Predict Energy Consumption")
+if st.checkbox("Use the trained model to predict"):
+    # Load the model
+    try:
+        model = joblib.load("energy_model.pkl")
+    except:
+        st.error("No trained model found. Please train a model first!")
+    
+    if model:
+        # Input values for prediction
+        input_data = []
+        for feature in model.feature_names_in_:
+            val = st.number_input(f"Enter value for {feature}", value=0.0)
+            input_data.append(val)
+        
+        if st.button("Predict Energy Consumption"):
+            input_array = np.array([input_data])
+            prediction = model.predict(input_array)[0]
+            st.success(f"🔋 Predicted Energy Consumption: {prediction:.2f}")

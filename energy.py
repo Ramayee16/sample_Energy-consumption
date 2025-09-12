@@ -1,62 +1,50 @@
 import streamlit as st
-import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error
 import joblib
 
-st.title("Energy Consumption Prediction")
+# ---------------------------
+# Frontend: Energy Prediction
+# ---------------------------
 
-# 1️⃣ Upload dataset
-uploaded_file = st.file_uploader("Upload your CSV dataset", type=["csv"])
-if uploaded_file:
-    df = pd.read_csv(uploaded_file)
-    st.write("Preview of Dataset:")
-    st.dataframe(df.head())
+st.set_page_config(page_title="Energy Prediction App", page_icon="⚡", layout="centered")
 
-    # 2️⃣ Select features and target
-    all_columns = df.columns.tolist()
-    target_column = st.selectbox("Select Target Column (Energy Consumption)", all_columns)
-    feature_columns = st.multiselect("Select Feature Columns", [col for col in all_columns if col != target_column])
+st.title("⚡ Energy Consumption Prediction")
+st.markdown("Enter the details below to predict energy consumption using a trained model.")
 
-    if st.button("Train Model"):
-        # Prepare data
-        X = df[feature_columns]
-        y = df[target_column]
-        
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        
-        # Train model
-        model = LinearRegression()
-        model.fit(X_train, y_train)
-        
-        # Evaluate model
-        y_pred = model.predict(X_test)
-        mse = mean_squared_error(y_test, y_pred)
-        st.success(f"Model trained! Mean Squared Error: {mse:.2f}")
-        
-        # Save the trained model
-        joblib.dump(model, "energy_model.pkl")
-        st.info("Trained model saved as 'energy_model.pkl'")
+# ---------------------------
+# User Inputs
+# ---------------------------
+st.subheader("Input Features")
 
-# 3️⃣ Predict energy consumption for new data
-st.subheader("Predict Energy Consumption")
-if st.checkbox("Use the trained model to predict"):
-    # Load the model
-    try:
-        model = joblib.load("energy_model.pkl")
-    except:
-        st.error("No trained model found. Please train a model first!")
-    
+# Example feature inputs (replace with your actual feature names)
+temperature = st.number_input("Temperature (°C)", min_value=-50.0, max_value=50.0, value=25.0, format="%.2f")
+humidity = st.number_input("Humidity (%)", min_value=0.0, max_value=100.0, value=50.0, format="%.2f")
+wind_speed = st.number_input("Wind Speed (m/s)", min_value=0.0, max_value=50.0, value=5.0, format="%.2f")
+hour_of_day = st.number_input("Hour of Day (0-23)", min_value=0, max_value=23, value=12)
+day_of_week = st.number_input("Day of Week (0=Monday, 6=Sunday)", min_value=0, max_value=6, value=0)
+
+# ---------------------------
+# Load Model
+# ---------------------------
+try:
+    model = joblib.load("energy_model.pkl")  # Make sure the model file exists
+except:
+    st.warning("No trained model found. Please train a model first!")
+    model = None
+
+# ---------------------------
+# Prediction Button
+# ---------------------------
+if st.button("Predict Energy Consumption"):
     if model:
-        # Input values for prediction
-        input_data = []
-        for feature in model.feature_names_in_:
-            val = st.number_input(f"Enter value for {feature}", value=0.0)
-            input_data.append(val)
-        
-        if st.button("Predict Energy Consumption"):
-            input_array = np.array([input_data])
-            prediction = model.predict(input_array)[0]
-            st.success(f"🔋 Predicted Energy Consumption: {prediction:.2f}")
+        input_features = np.array([[temperature, humidity, wind_speed, hour_of_day, day_of_week]])
+        prediction = model.predict(input_features)[0]
+        st.success(f"🔋 Estimated Energy Consumption: {prediction:.2f} kWh")
+    else:
+        st.error("Model not loaded. Cannot make prediction.")
+
+# ---------------------------
+# Footer
+# ---------------------------
+st.markdown("---")
+st.markdown("Developed with ❤️ using Python & Streamlit")
